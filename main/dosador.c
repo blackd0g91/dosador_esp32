@@ -1,6 +1,14 @@
 #include <stdio.h>
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "functions.c"
+#include "main.c"
+#include "setup.c"
 
-void app_main(void)
-{
+// Led embutido está no GPIO 2
 
+void app_main(void){
+    setup();
+    while(true) mainLoop();
 }
