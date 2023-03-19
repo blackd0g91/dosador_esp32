@@ -1,6 +1,8 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
 import time
+import network
 from machine import Pin
+from dosador import Dosador
 
 # Digital Inputs
 dIN2  = Pin(2,  Pin.IN, Pin.PULL_UP)
@@ -24,3 +26,6 @@ dIN35 = Pin(35, Pin.IN, Pin.PULL_UP)    # Valor instável? Pino já utilizado?
 
 # Digital Outputs
 dOUT13 = Pin(13, Pin.OUT)
+
+# Interrupts
+# dIN33.irq(Pin.IRQ_FALLING, callback)

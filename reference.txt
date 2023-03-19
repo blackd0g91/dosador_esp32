@@ -123,3 +123,25 @@ z = json.loads(y)                                   # convert into object (dict)
 # f.write('text here') # inserts text into open file -> returns number of bytes written
 # f.read()  # reads the file content
 # f.close   # closes the opened file
+
+
+
+
+
+
+
+
+#
+# SERVER
+#
+
+# https://monitor-pet-dosador.azurewebsites.net/api/ScheduleFunction?IdDosador=6bfb570b-ff74-417e-aef9-a46ac66c0184&KeyAccessApi=e5dd09c6-a4bf-46bf-af56-4c533f5c60aa
+    [{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":0,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":0,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":0,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":1,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":1,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":1,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":2,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":2,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":2,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":3,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":3,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":3,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":4,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":4,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":4,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":5,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":5,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":5,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0},{"idSchedule":1,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":6,"scheduledDate":"1900-01-01T09:00:00","quantity":50.0},{"idSchedule":2,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":6,"scheduledDate":"1900-01-01T13:10:00","quantity":20.0},{"idSchedule":3,"idDosador":"6bfb570b-ff74-417e-aef9-a46ac66c0184","dayOfWeek":6,"scheduledDate":"1900-01-01T16:10:00","quantity":20.0}]
+
+
+# https://monitor-pet-dosador.azurewebsites.net/api/AddWeightFunction?KeyAccessApi=e5dd09c6-a4bf-46bf-af56-4c533f5c60aa
+POST body:
+{
+    "idDosador": {guid},
+    "weight": {number}
+}
