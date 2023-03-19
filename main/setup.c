@@ -6,6 +6,8 @@ void setup(){
     gpio_set_direction(GPIO_NUM_26, GPIO_MODE_OUTPUT);
     gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 
+    setupWifi();
+
     startup_blink();
 
 }
