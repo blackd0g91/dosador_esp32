@@ -1,4 +1,5 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
+import time
 from machine import Pin
 
 # Digital Inputs
