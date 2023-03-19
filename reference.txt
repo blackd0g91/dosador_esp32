@@ -1,0 +1,125 @@
+#
+# GERAL
+#
+
+# Ao ligar, o dispositivo executa o arquivo boot.py e ao finalizar, main.py
+# Para leitura de sinais analógicos, os pinos utilizáveis são:  0, 2, 4, 12-15 e 25-27 (ADC bloco 2), e 32-39 (ADC bloco 1)
+
+
+
+
+
+
+#
+# DISPOSITIVO
+#
+
+# Portas disponíveis na placa
+# 2
+# 4
+# 5
+# 12
+# 13
+# 14
+# 15
+# 18
+# 19
+# 21
+# 22
+# 23
+# 25
+# 26
+# 27
+# 32
+# 33
+# 34
+# 35
+
+
+
+
+
+
+#
+# BASH
+#
+
+# Limpar Memória Flash
+esptool.py --chip esp32 --port /dev/ttyUSB0 erase_flash
+
+# Flash Micropython
+esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 460800 write_flash -z 0x1000 esp32-20220618-v1.19.1.bin
+
+# Acessar REPL
+picocom /dev/ttyUSB0 -b115200
+
+
+
+
+
+
+#
+# MICROPYTHON
+#
+#   The boot.py script is executed first (if it exists) and then once it completes the main.py script is executed.
+#
+#   https://docs.micropython.org/en/latest/esp8266/tutorial/intro.html
+#   https://docs.micropython.org/en/latest/esp32/quickref.html
+#   WATCHED https://www.youtube.com/watch?v=RJik6EkS260
+
+import esp32
+esp32.raw_temperature() # prints the inner esp temperature in farenheit
+
+
+
+import machine
+machine.freq()          # get the current frequency of the CPU
+machine.freq(240000000) # set the CPU frequency to 240 MHz
+
+pin = machine.Pin(2, machine.Pin.OUT)
+pin.on()
+pin.off()
+
+
+
+import network
+wlan = network.WLAN(network.STA_IF) # create station interface
+wlan.active(True)       # activate the interface
+wlan.scan()             # scan for access points
+wlan.isconnected()      # check if the station is connected to an AP
+wlan.connect('ssid', 'key') # connect to an AP
+wlan.config('mac')      # get the interface's MAC address
+wlan.ifconfig()         # get the interface's IP/netmask/gw/DNS addresses
+
+
+ap = network.WLAN(network.AP_IF)    # Create an instance of the WLAN class and set it to access point mode
+ap.active(True)
+ap.config(essid="MyESP32AP", password="mypassword") # Set the access point SSID and password
+print("Access point IP address:", ap.ifconfig()[0]) # Get the IP address assigned to the access point
+
+
+
+import os
+os.listdir()    # list directories
+os.mkdir('directory name') # create directory
+os.remove('directory Or File name') # remove directory or file
+
+
+
+import time
+time.sleep(INT) # waits for INT seconds
+
+
+
+import json # https://docs.micropython.org/en/latest/library/json.html
+x = '{"name": "John","age": 30,"city": "New York"}' # a Python object (dict)
+y = json.dumps(x)                                   # convert into JSON
+z = json.loads(y)                                   # convert into object (dict)
+
+
+
+# Files
+# f = open('filename.ext', 'w') # opens a file for editing
+# f.write('text here') # inserts text into open file -> returns number of bytes written
+# f.read()  # reads the file content
+# f.close   # closes the opened file
