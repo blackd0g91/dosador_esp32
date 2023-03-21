@@ -4,18 +4,27 @@ import time
 import urequests
 import utils
 
+SERVER_BASE = "https://monitor-pet-dosador.azurewebsites.net/api/"
+
 class Dosador:
 
     def __init__(self, id, apiKey):
         self.id     = id
         self.apiKey = apiKey
 
-    # TODO: Criar função genérica para requisições com o objetivo de armazenar possíveis constantes
+    def updateSchedules(self):
+        endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.apiKey}'
+        request = self.makeRequest("GET", endpoint)
+        utils.storeContent('schedules.json', request.content)
+        return request
+
     def getSchedules(self):
-        url = f'https://monitor-pet-dosador.azurewebsites.net/api/ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.apiKey}'
-        print(url)
-        response = urequests.get(url)
-        print(response.content)
+        return utils.getContent('schedules.json')
+
+    def makeRequest(self, method, endpoint, data=None, json=None, headers={}):
+        url = SERVER_BASE + endpoint
+        response = urequests.request(method, url, data=None, json=None, headers={})
+        return response
 
     def wlanconnect(self, feedbackPin):
         credentials = utils.getwlancredentials()
