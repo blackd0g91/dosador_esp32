@@ -125,7 +125,7 @@ z = json.loads(y)                                   # convert into object (dict)
 # f.close   # closes the opened file
 
 
-
+print(object.__dict__) # prints object attributes and values
 
 
 
