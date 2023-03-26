@@ -5,6 +5,7 @@ import ntptime
 import urequests
 import utils
 import machine
+import uasyncio
 
 class Dosador:
 
@@ -19,9 +20,6 @@ class Dosador:
         self.releaseLed = releaseLed
         self.flag = -1
         self.wlan = self.createWlan()
-
-        self.wlanconnect()
-        self.updateByNetworkTime()
 
     # AGENDAMENTOS
 
@@ -44,7 +42,7 @@ class Dosador:
 
     # TEMPO
 
-    def updateByNetworkTime(self):
+    async def updateByNetworkTime(self):
         ntptime.settime()
 
     def getTimeUTC(self):
@@ -66,25 +64,29 @@ class Dosador:
         wlan.active(True)
         return wlan
 
-    def wlanconnect(self):
+    async def wlanconnect(self):
         credentials = utils.getwlancredentials()
         self.wlan.connect(credentials["ssid"], credentials['password'])
+        await self.wlanAttemptingToConnect()
+        await self.updateByNetworkTime()
+
+    async def wlanAttemptingToConnect(self):
         while not self.wlan.isconnected():
             print("Connecting...")
-            time.sleep(0.2)
-            self.wlanLed.on()
-            time.sleep(0.2)
-            self.wlanLed.off()
+            self.wlanLed.value(not self.wlanLed.value())
+            await uasyncio.sleep_ms(500)
+        self.wlanLed.off()
         print("Connected")
 
-    def wlanreconnect(self):
-        while not self.wlan.isconnected():
-            print("Connecting...")
-            time.sleep(0.2)
-            self.wlanLed.on()
-            time.sleep(0.2)
-            self.wlanLed.off()
-        print("Connected")
+    # BOTÕES
+
+    async def releaseAction(self):
+        print("Pressed")
+
+        while self.releaseBtn.value() == 0:
+            self.releaseLed.on()
+            await uasyncio.sleep_ms(100)
+        self.releaseLed.off()
 
     # INTERRUPÇÕES
 

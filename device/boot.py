@@ -32,16 +32,4 @@ dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
 dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
-utils.startupDiag((dOUT2, dOUT12, dOUT13, dOUT14));
-
-# Class instantiation
-dsdr = Dosador(
-    utils.getContent('id'), # ID
-    -3,                     # UTC
-    dOUT14,                 # wlanLed
-    dIN33,                  # releaseButton
-    dOUT12                  # releaseLed
-    )
-
-# Interrupts
-# dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)
+utils.startupDiag((dOUT2, dOUT12, dOUT13, dOUT14))

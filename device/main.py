@@ -1,19 +1,43 @@
-while True:
+# Class instantiation
+dsdr = Dosador(
+    utils.getContent('id'), # ID
+    -3,                     # UTC
+    dOUT14,                 # wlanLed
+    dIN33,                  # releaseButton
+    dOUT12                  # releaseLed
+    )
 
-    # Monitorar conexão
-    # TODO: Verificar possibilidade de tornar a verificação async
-    if not dsdr.wlan.isconnected():
-        dOUT14.value(not dOUT14.value())
-    else:
-        dOUT14.off()
+# Interrupts
+# dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)
 
-    dOUT13.value(not dOUT13.value())
-    time.sleep(1)
+async def monitorWlan(equipment):
 
-    print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+    await uasyncio.sleep(2)
 
-    if(dIN33.value() == 0):
-        rqst = dsdr.getSchedules()
-        print(rqst)
-        while dIN33.value == 1:
-            time.sleep_ms(100)
+    await equipment.wlanconnect()
+
+    while True:
+        if not equipment.wlan.isconnected():
+            await equipment.wlanAttemptingToConnect()
+        await uasyncio.sleep(5)
+
+async def monitorReleaseBtn(equipment):
+    while True:
+        if equipment.releaseBtn.value() == 0:
+            await equipment.releaseAction()
+        await uasyncio.sleep_ms(300)
+    
+
+async def main():
+    while True:
+        dOUT13.value(not dOUT13.value())
+        print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+        await uasyncio.sleep(1)
+
+
+
+loop = uasyncio.get_event_loop()
+loop.create_task(main())
+loop.create_task(monitorWlan(dsdr))
+loop.create_task(monitorReleaseBtn(dsdr))
+loop.run_forever()
