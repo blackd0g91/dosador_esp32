@@ -126,6 +126,7 @@ z = json.loads(y)                                   # convert into object (dict)
 
 
 print(object.__dict__) # prints object attributes and values
+type(e).__name__ # prints the exception name
 
 
 

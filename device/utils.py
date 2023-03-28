@@ -27,10 +27,17 @@ def storeContent(filename, content):
     f.close()
 
 def getContent(filename):
-    f = open('storage/'+filename, 'r')
-    content = f.read()
-    f.close()
-    return content
+    try:
+        f = open('storage/'+filename, 'r')
+        content = f.read()
+        f.close()
+        return content
+    except OSError as e:
+        if hasattr(e, 'errno'):
+            if e.errno == errno.ENOENT:
+                print(f'File {filename} does not exist, creating it...')
+                storeContent(filename, '')
+        return False
 
 def getTemperature():
     celsius = (esp32.raw_temperature() - 32) * (5/9)
@@ -40,6 +47,7 @@ def getTemperature():
 def getwlancredentials():
     wlanFile = open("wlan.json", "r")
     wlanInfo = json.loads(wlanFile.read())
+    wlanFile.close()
     return wlanInfo
 
 def twoDigit(number):

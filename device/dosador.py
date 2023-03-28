@@ -13,13 +13,13 @@ class Dosador:
     SERVER_APIKEY = 'e5dd09c6-a4bf-46bf-af56-4c533f5c60aa'
 
     def __init__(self, id, utc, wlanLed, releaseBtn, releaseLed):
-        self.id     = id
-        self.utc = utc
-        self.wlanLed = wlanLed
+        self.id         = id
+        self.utc        = utc
+        self.wlanLed    = wlanLed
         self.releaseBtn = releaseBtn
         self.releaseLed = releaseLed
-        self.flag = -1
-        self.wlan = self.createWlan()
+        self.flag       = -1
+        self.wlan       = self.createWlan()
 
     # AGENDAMENTOS
 
