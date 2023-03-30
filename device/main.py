@@ -27,6 +27,12 @@ async def monitorReleaseBtn(equipment):
             await equipment.releaseAction()
         await uasyncio.sleep_ms(300)
     
+async def monitorSchedules(equipment):
+    while True:
+        # Verificar se este minuto é diferente desde o último loop
+        # Se for diferente, atualizar o json
+        # Se for diferente, verificar se algum agendamento bate com os cadastrados
+        await uasyncio.sleep(30)
 
 async def main():
     while True:

@@ -32,4 +32,6 @@ dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
 dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
+network.hostname('Dosador')
+
 utils.startupDiag((dOUT2, dOUT12, dOUT13, dOUT14))

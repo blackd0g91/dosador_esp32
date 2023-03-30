@@ -3,6 +3,7 @@ import network
 import time
 import ntptime
 import urequests
+import arequests
 import utils
 import machine
 import uasyncio
@@ -13,48 +14,101 @@ class Dosador:
     SERVER_APIKEY = 'e5dd09c6-a4bf-46bf-af56-4c533f5c60aa'
 
     def __init__(self, id, utc, wlanLed, releaseBtn, releaseLed):
-        self.id         = id
-        self.utc        = utc
-        self.wlanLed    = wlanLed
-        self.releaseBtn = releaseBtn
-        self.releaseLed = releaseLed
-        self.flag       = -1
-        self.wlan       = self.createWlan()
+        self.id             = id
+        self.utc            = utc
+        self.wlanLed        = wlanLed
+        self.releaseBtn     = releaseBtn
+        self.releaseLed     = releaseLed
+
+        self.schedules      = None
+        self.lastMinChecked = None
+
+        self.wlan           = self.createWlan()
+        self.rtc            = self.createRTC()
 
     # AGENDAMENTOS
 
-    def updateSchedules(self):
-        # endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.apiKey}'
+    async def requestUpdatedSchedules(self):
         endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.SERVER_APIKEY}'
-        request = self.makeRequest("GET", endpoint)
-        utils.storeContent('schedules.json', request.content)
-        return request
+        request = await self.makeRequest("GET", endpoint)
+        if isinstance(request, Response):
+            utils.storeContent('schedules.json', request.content)
+            return request
 
-    def getSchedules(self):
-        return utils.getContent('schedules.json')
+    async def getSchedules(self):
+        await self.updateSchedules()
+        return self.schedules
+
+    async def updateSchedules(self):
+
+        if self.schedules == None:
+            print("Setting schedules")
+            await self.requestUpdatedSchedules()
+            schedules = utils.getContent("schedules.json")
+            if schedules != False:
+                schedules = json.loads(schedules)
+
+                tempSchedules = []
+
+                for schedule in schedules:
+
+                    datetime = schedule['scheduledDate'].split("T")[1]
+                    datetime = datetime.split(":")
+
+                    dow = utils.DIAS_SEMANA_SERVER[schedule['dayOfWeek']]
+
+                    tempSchedule = {
+                        'id'    : schedule['idSchedule'],   # ID do Agendamento
+                        'qtt'   : schedule['quantity'],     # Quantidade de alimento a ser liberado (em gramas)
+                        'dow'   : dow,                      # Dia da semana do agendamento
+                        'h'     : datetime[0],              # Hora do agendamento
+                        'm'     : datetime[1]               # Minuto do agendamento
+                    }
+                    tempSchedules.append(tempSchedule)
+
+                self.schedules = tempSchedules
+        else:
+            print("Schedules already set")
+
+        # Imprime os agendamentos (Apenas para testes)
+        if type(self.schedules) == list and self.schedules:
+            for schedule in self.schedules:
+                print(schedule, type(schedule))
 
     # REQUISIÇÕES
 
-    def makeRequest(self, method, endpoint, data=None, json=None, headers={}):
+    async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
         url = self.SERVER_BASE + endpoint
-        response = urequests.request(method, url, data=None, json=None, headers={})
-        return response
+        try:
+            return await uasyncio.wait_for(arequests._requests(method, url, data=None, json=None, headers={}), timeout=timeout)
+        except uasyncio.TimeoutError as e:
+            # raise TimeoutError(e)
+            print("TimeoutError", e)
+            return False
+        
+            
+        
 
     # TEMPO
 
+    def createRTC(self):
+        # Verificar se existe um horário salvo para ser atribuído
+        return machine.RTC()
+
     async def updateByNetworkTime(self):
         ntptime.settime()
+        utcTime = time.mktime(time.localtime()) + ( self.utc * 3600)
+        self.rtc = time.localtime(utcTime)
 
     def getTimeUTC(self):
-        utcTime = time.mktime(time.localtime()) + ( self.utc * 3600)
-        return time.localtime(utcTime)
+        return self.rtc.datetime()
 
     def getReadableTime(self):
-        t = self.getTimeUTC()
+        t = self.rtc.datetime()
         return f'{utils.twoDigit(t[2])}/{utils.twoDigit(t[1])}/{t[0]}, {utils.DIAS_SEMANA[t[6]]} - {utils.twoDigit(t[3])}:{utils.twoDigit(t[4])}:{utils.twoDigit(t[5])}'
 
     def getUSDate(self):
-        t = self.getTimeUTC()
+        t = self.rtc.datetime()
         return f'{t[0]}-{utils.twoDigit(t[1])}-{utils.twoDigit(t[2])}'
 
     # WLAN
@@ -73,28 +127,27 @@ class Dosador:
     async def wlanAttemptingToConnect(self):
         while not self.wlan.isconnected():
             print("Connecting...")
-            self.wlanLed.value(not self.wlanLed.value())
-            await uasyncio.sleep_ms(500)
-        self.wlanLed.off()
+            for x in range(4):
+                self.wlanLed.value(not self.wlanLed.value())
+                await uasyncio.sleep_ms(250)
+        self.wlanLed.on()
         print("Connected")
 
     # BOTÕES
 
     async def releaseAction(self):
         print("Pressed")
+        self.releaseLed.on()
+
+
+
+
+        # set schedules attribute
+        await self.updateSchedules()
+
+
+
 
         while self.releaseBtn.value() == 0:
-            self.releaseLed.on()
             await uasyncio.sleep_ms(100)
         self.releaseLed.off()
-
-    # INTERRUPÇÕES
-
-    def releasePressed(self, Pin):
-        if self.flag == -1 or time.localtime()[4] != self.flag:
-            self.flag = time.localtime()[4]
-            print("Pressed")
-            if self.releaseBtn.value() == 1:
-                self.releaseLed.on()
-            else:
-                self.releaseLed.off()

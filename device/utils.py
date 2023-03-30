@@ -21,6 +21,8 @@ DIAS_SEMANA = (
     'Domingo'
     )
 
+DIAS_SEMANA_SERVER = (6, 0, 1, 2, 3, 4, 5)
+
 def storeContent(filename, content):
     f = open('storage/'+filename, 'w')
     f.write(content)
