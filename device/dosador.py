@@ -2,7 +2,6 @@ import json
 import network
 import time
 import ntptime
-import urequests
 import arequests
 import utils
 import machine
@@ -20,20 +19,13 @@ class Dosador:
         self.releaseBtn     = releaseBtn
         self.releaseLed     = releaseLed
 
-        self.schedules      = None
-        self.lastMinChecked = None
+        self.schedules      = {}
+        self.lastMinChecked = -1
 
         self.wlan           = self.createWlan()
         self.rtc            = self.createRTC()
 
     # AGENDAMENTOS
-
-    async def requestUpdatedSchedules(self):
-        endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.SERVER_APIKEY}'
-        request = await self.makeRequest("GET", endpoint)
-        if isinstance(request, Response):
-            utils.storeContent('schedules.json', request.content)
-            return request
 
     async def getSchedules(self):
         await self.updateSchedules()
@@ -48,7 +40,7 @@ class Dosador:
             if schedules != False:
                 schedules = json.loads(schedules)
 
-                tempSchedules = []
+                temp = []
 
                 for schedule in schedules:
 
@@ -64,23 +56,44 @@ class Dosador:
                         'h'     : datetime[0],              # Hora do agendamento
                         'm'     : datetime[1]               # Minuto do agendamento
                     }
-                    tempSchedules.append(tempSchedule)
+                    temp.append(tempSchedule)
 
-                self.schedules = tempSchedules
+                self.schedules = temp
         else:
             print("Schedules already set")
 
         # Imprime os agendamentos (Apenas para testes)
-        if type(self.schedules) == list and self.schedules:
+        if self.schedules:
             for schedule in self.schedules:
                 print(schedule, type(schedule))
 
+    async def checkSchedules(self):
+        print("Checking schedules")
+
+        dow = self.getCurrentDayOfWeek()
+        m   = self.getCurrentMinute()
+        h   = self.getCurrentHour()
+
+        if self.schedules:
+            for sch in self.schedules:
+                if sch.dow == dow and sch.h == h and sch.m == m:
+                    return sch
+
+        return {}
+
     # REQUISIÇÕES
+
+    async def requestUpdatedSchedules(self):
+        endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.SERVER_APIKEY}'
+        request = await self.makeRequest("GET", endpoint)
+        if isinstance(request, Response):
+            utils.storeContent('schedules.json', request.content)
+            return request
 
     async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
         url = self.SERVER_BASE + endpoint
         try:
-            return await uasyncio.wait_for(arequests._requests(method, url, data=None, json=None, headers={}), timeout=timeout)
+            return await uasyncio.wait_for(arequests._requests(method, url, data=data, json=json, headers=headers), timeout=timeout)
         except uasyncio.TimeoutError as e:
             # raise TimeoutError(e)
             print("TimeoutError", e)
@@ -97,19 +110,30 @@ class Dosador:
 
     async def updateByNetworkTime(self):
         ntptime.settime()
-        utcTime = time.mktime(time.localtime()) + ( self.utc * 3600)
+        utcTime = time.mktime(time.localtime()) + (self.utc * 3600)
         self.rtc = time.localtime(utcTime)
 
-    def getTimeUTC(self):
+    def getDatetime(self):
         return self.rtc.datetime()
 
     def getReadableTime(self):
-        t = self.rtc.datetime()
+        t = self.getDatetime()
         return f'{utils.twoDigit(t[2])}/{utils.twoDigit(t[1])}/{t[0]}, {utils.DIAS_SEMANA[t[6]]} - {utils.twoDigit(t[3])}:{utils.twoDigit(t[4])}:{utils.twoDigit(t[5])}'
 
-    def getUSDate(self):
-        t = self.rtc.datetime()
+    def getCurrentUSDate(self):
+        t = self.getDatetime()
         return f'{t[0]}-{utils.twoDigit(t[1])}-{utils.twoDigit(t[2])}'
+
+    def getCurrentHour(self):
+        return self.getDatetime()[3]
+
+    def getCurrentMinute(self):
+        return self.getDatetime()[4]
+
+    def getCurrentDayOfWeek(self):
+        return self.getDatetime()[6]
+
+
 
     # WLAN
 
@@ -132,6 +156,14 @@ class Dosador:
                 await uasyncio.sleep_ms(250)
         self.wlanLed.on()
         print("Connected")
+
+    # MOTOR
+
+    def releaseFood(self, quantity=0):
+        if quantity > 0:
+            print("Releasing Food")
+        else:
+            print("Invalid quantity")
 
     # BOTÕES
 

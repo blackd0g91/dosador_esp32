@@ -1,6 +1,5 @@
 import esp32
 import time
-import ntptime
 import json
 import os
 

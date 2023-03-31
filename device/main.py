@@ -29,21 +29,35 @@ async def monitorReleaseBtn(equipment):
     
 async def monitorSchedules(equipment):
     while True:
-        # Verificar se este minuto é diferente desde o último loop
-        # Se for diferente, atualizar o json
-        # Se for diferente, verificar se algum agendamento bate com os cadastrados
         await uasyncio.sleep(30)
+        thisMinute = equipment.getCurrentMinute()
+        if equipment.lastMinChecked != thisMinute or equipment.lastMinChecked == -1:
+            print("Different minute, updating schedules")
+            equipment.lastMinChecked = thisMinute
+            await equipment.updateSchedules()
+            schedule = await equipment.checkSchedules()
 
-async def main():
+            if schedule:
+                equipment.releaseFood(schedule.qtt)
+
+        else:
+            print("Skipping schedules update")
+        
+async def monitorWeight(equipment):
     while True:
-        dOUT13.value(not dOUT13.value())
+        uasyncio.sleep(10)
+
+async def main(loopingLed):
+    while True:
+        loopingLed.value(not loopingLed.value())
         print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
         await uasyncio.sleep(1)
 
 
 
 loop = uasyncio.get_event_loop()
-loop.create_task(main())
+loop.create_task(main(dOUT13))
 loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
+loop.create_task(monitorWeight(dsdr))
 loop.run_forever()

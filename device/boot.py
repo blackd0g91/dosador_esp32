@@ -1,6 +1,5 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
 import time
-import ntptime
 import network
 import json
 from machine import Pin
@@ -33,5 +32,9 @@ dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
 network.hostname('Dosador')
-
+print("machine.freq", machine.freq())
+print("machine.unique_id", machine.unique())
+print("esp.flash_size", esp.flash_size())
+print("esp.flash_user_start", esp.flash_user_start)
+print("micropython.mem_info", micropython.mem_info())
 utils.startupDiag((dOUT2, dOUT12, dOUT13, dOUT14))
