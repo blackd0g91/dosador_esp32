@@ -2,6 +2,7 @@ import esp32
 import time
 import json
 import os
+import machine
 
 try:
     os.listdir('storage')
@@ -51,6 +52,19 @@ def getwlancredentials():
     wlanFile.close()
     return wlanInfo
 
+# Converte do formato do módulo time para o formato da classe RTC
+def convertTimeToRTC(datetime):
+    return (
+            datetime[0],
+            datetime[1],
+            datetime[2],
+            datetime[6],
+            datetime[3],
+            datetime[4],
+            datetime[5],
+            datetime[6]
+        )
+
 def twoDigit(number):
     if number < 10:
         return '0' + str(number)
@@ -66,3 +80,4 @@ def startupDiag(leds=None):
         time.sleep(1)
         for led in leds:
             led.off()
+    print("CPU Frequency:", machine.freq() / 1000000, "MHz")

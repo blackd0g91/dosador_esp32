@@ -2,11 +2,14 @@
 import time
 import network
 import json
+import machine
 from machine import Pin
 import dosador
 from dosador import Dosador
 import utils
 import uasyncio
+import esp
+import micropython
 
 # Digital Inputs
 dIN4  = Pin(4,  Pin.IN, Pin.PULL_UP)
@@ -31,10 +34,9 @@ dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
 dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
-network.hostname('Dosador')
-print("machine.freq", machine.freq())
-print("machine.unique_id", machine.unique())
+# network.hostname('Dosador')
+# print("machine.unique_id", machine.unique())
 print("esp.flash_size", esp.flash_size())
-print("esp.flash_user_start", esp.flash_user_start)
-print("micropython.mem_info", micropython.mem_info())
+print("esp.flash_user_start", esp.flash_user_start())
+# print("micropython.mem_info", micropython.mem_info())
 utils.startupDiag((dOUT2, dOUT12, dOUT13, dOUT14))

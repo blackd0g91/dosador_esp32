@@ -10,6 +10,15 @@ dsdr = Dosador(
 # Interrupts
 # dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)
 
+# Startups Counter
+startups = utils.getContent("startups.txt")
+if startups == False or startups == '':
+    startups = 0
+startups = int(startups) + 1
+startups = str(startups)
+print("Startups: ", startups)
+utils.storeContent("startups.txt", startups)
+
 async def monitorWlan(equipment):
 
     await uasyncio.sleep(2)
@@ -45,12 +54,15 @@ async def monitorSchedules(equipment):
         
 async def monitorWeight(equipment):
     while True:
-        uasyncio.sleep(10)
+        await uasyncio.sleep(10)
 
 async def main(loopingLed):
     while True:
         loopingLed.value(not loopingLed.value())
-        print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+        try:
+            print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+        except Exception as e:
+            print(e)
         await uasyncio.sleep(1)
 
 

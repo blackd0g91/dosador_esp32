@@ -104,32 +104,45 @@ class Dosador:
 
     # TEMPO
 
+    # Cria o objeto RTC (Real Time Clock) do equipamento
+    # Caso haja um datetime salvo, assume o horário fornecido por ele
     def createRTC(self):
-        # Verificar se existe um horário salvo para ser atribuído
-        return machine.RTC()
+        rtc = machine.RTC()
+        datetime = utils.getContent("datetime.json")
+        if datetime:
+            rtc.init(json.loads(datetime))
+        return rtc
 
+    # Sincroniza o relógio interno através de um servidor remoto
     async def updateByNetworkTime(self):
         ntptime.settime()
-        utcTime = time.mktime(time.localtime()) + (self.utc * 3600)
-        self.rtc = time.localtime(utcTime)
+        utcTime = time.localtime(time.mktime(time.localtime()) + (self.utc * 3600))
+        utcTime = utils.convertTimeToRTC(utcTime)
+        self.rtc.init(utcTime)
 
+    # Retorna uma tupla com os dados de data e horário
     def getDatetime(self):
         return self.rtc.datetime()
 
+    # Retorna uma string com data e horário atuais formatados para leitura
     def getReadableTime(self):
         t = self.getDatetime()
-        return f'{utils.twoDigit(t[2])}/{utils.twoDigit(t[1])}/{t[0]}, {utils.DIAS_SEMANA[t[6]]} - {utils.twoDigit(t[3])}:{utils.twoDigit(t[4])}:{utils.twoDigit(t[5])}'
+        return f'{utils.twoDigit(t[2])}/{utils.twoDigit(t[1])}/{t[0]}, {utils.DIAS_SEMANA[t[3]]} - {utils.twoDigit(t[4])}:{utils.twoDigit(t[5])}:{utils.twoDigit(t[6])}'
 
+    # Retorna uma string no formato YYYY-MM-DD
     def getCurrentUSDate(self):
         t = self.getDatetime()
         return f'{t[0]}-{utils.twoDigit(t[1])}-{utils.twoDigit(t[2])}'
 
+    # Retorna a hora atual
     def getCurrentHour(self):
         return self.getDatetime()[3]
 
+    # Retorna o minuto atual
     def getCurrentMinute(self):
         return self.getDatetime()[4]
 
+    # Retorna um inteiro representando o dia da semana atual
     def getCurrentDayOfWeek(self):
         return self.getDatetime()[6]
 
@@ -137,17 +150,22 @@ class Dosador:
 
     # WLAN
 
+    # Cria o objeto de conexão (Wlan)
     def createWlan(self):
         wlan = network.WLAN(network.STA_IF)
         wlan.active(True)
         return wlan
 
+    # Busca as informações de SSID e senha do arquivo json salvo e tenta realizar a conexão
     async def wlanconnect(self):
         credentials = utils.getwlancredentials()
-        self.wlan.connect(credentials["ssid"], credentials['password'])
+        print("SSID", credentials["ssid"])
+        print("password", credentials["password"])
+        self.wlan.connect(credentials["ssid"], credentials["password"])
         await self.wlanAttemptingToConnect()
         await self.updateByNetworkTime()
 
+    # Informa através de um LED e pelo console uma tentativa de conexão
     async def wlanAttemptingToConnect(self):
         while not self.wlan.isconnected():
             print("Connecting...")
@@ -175,7 +193,8 @@ class Dosador:
 
 
         # set schedules attribute
-        await self.updateSchedules()
+        # await self.updateSchedules()
+        utils.storeContent("datetime.json", json.dumps(self.getDatetime()))
 
 
 
