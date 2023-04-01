@@ -10,6 +10,15 @@ dsdr = Dosador(
 # Interrupts
 # dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)
 
+# Startups Counter
+startups = utils.getContent("startups.txt")
+if startups == False or startups == '':
+    startups = 0
+startups = int(startups) + 1
+startups = str(startups)
+print("Startups: ", startups)
+utils.storeContent("startups.txt", startups)
+
 async def monitorWlan(equipment):
 
     await uasyncio.sleep(2)
@@ -27,17 +36,40 @@ async def monitorReleaseBtn(equipment):
             await equipment.releaseAction()
         await uasyncio.sleep_ms(300)
     
-
-async def main():
+async def monitorSchedules(equipment):
     while True:
-        dOUT13.value(not dOUT13.value())
-        print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+        await uasyncio.sleep(30)
+        thisMinute = equipment.getCurrentMinute()
+        if equipment.lastMinChecked != thisMinute or equipment.lastMinChecked == -1:
+            print("Different minute, updating schedules")
+            equipment.lastMinChecked = thisMinute
+            await equipment.updateSchedules()
+            schedule = await equipment.checkSchedules()
+
+            if schedule:
+                equipment.releaseFood(schedule.qtt)
+
+        else:
+            print("Skipping schedules update")
+        
+async def monitorWeight(equipment):
+    while True:
+        await uasyncio.sleep(10)
+
+async def main(loopingLed):
+    while True:
+        loopingLed.value(not loopingLed.value())
+        try:
+            print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+        except Exception as e:
+            print(e)
         await uasyncio.sleep(1)
 
 
 
 loop = uasyncio.get_event_loop()
-loop.create_task(main())
+loop.create_task(main(dOUT13))
 loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
+loop.create_task(monitorWeight(dsdr))
 loop.run_forever()
