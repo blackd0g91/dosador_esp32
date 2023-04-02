@@ -23,11 +23,13 @@ DIAS_SEMANA = (
 
 DIAS_SEMANA_SERVER = (6, 0, 1, 2, 3, 4, 5)
 
+# Armazena uma string em arquivo, caso já exista, sobrescreve o conteúdo
 def storeContent(filename, content):
     f = open('storage/'+filename, 'w')
     f.write(content)
     f.close()
 
+# Busca o conteúdo de um arquivo
 def getContent(filename):
     try:
         f = open('storage/'+filename, 'r')
@@ -37,10 +39,12 @@ def getContent(filename):
     except OSError as e:
         if hasattr(e, 'errno'):
             if e.errno == errno.ENOENT:
-                print(f'File {filename} does not exist, creating it...')
-                storeContent(filename, '')
+                print(f'ERROR: File {filename} does not exist.')
+                # print(f'File {filename} does not exist, creating it...')
+                # storeContent(filename, '')
         return False
 
+# Busca a temperatura atual do microcontrolador
 def getTemperature():
     celsius = (esp32.raw_temperature() - 32) * (5/9)
     return round(celsius, 1)
@@ -65,14 +69,18 @@ def convertTimeToRTC(datetime):
             datetime[6]
         )
 
+# Normaliza números abaixo de 10 para duas casas
+# Ex: 1 -> 01
 def twoDigit(number):
     if number < 10:
         return '0' + str(number)
     else:
         return str(number)
 
-# Função auxiliar para verificar conexão física de leds
+# Método para verificar funcionamento e atributos básicos do microcontrolador
 def startupDiag(leds=None):
+
+    # LEDS
     if leds != None:
         for led in leds:
             led.on()
@@ -80,4 +88,14 @@ def startupDiag(leds=None):
         time.sleep(1)
         for led in leds:
             led.off()
+
+    # Frequência da CPU
     print("CPU Frequency:", machine.freq() / 1000000, "MHz")
+
+    # Inicializações
+    startups = getContent("startups.txt")
+    if startups == False or startups == '':
+        startups = 0
+    startups = str(int(startups) + 1)
+    print("Startups: ", startups)
+    storeContent("startups.txt", startups)

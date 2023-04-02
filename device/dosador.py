@@ -6,11 +6,15 @@ import arequests
 import utils
 import machine
 import uasyncio
+from arequests import Response
+from arequests import TimeoutError
+from arequests import ConnectionError
 
 class Dosador:
 
-    SERVER_BASE = "https://monitor-pet-dosador.azurewebsites.net/api/"
-    SERVER_APIKEY = 'e5dd09c6-a4bf-46bf-af56-4c533f5c60aa'
+    SERVER_BASE     = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
+    SERVER_APIKEY   = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
+    MAX_WEIGHT      = const(500)                                                    # Peso máximo suportado pelo recipiente
 
     def __init__(self, id, utc, wlanLed, releaseBtn, releaseLed):
         self.id             = id
@@ -27,26 +31,29 @@ class Dosador:
 
     # AGENDAMENTOS
 
+    # Atualiza os agendamentos com o servidor e retorna como objeto dict
     async def getSchedules(self):
         await self.updateSchedules()
         return self.schedules
 
+    # Se possível busca os agendamentos atualizados no servidor e atualiza o objeto interno
     async def updateSchedules(self):
 
-        if self.schedules == None:
-            print("Setting schedules")
+        if self.wlan.isconnected():
+            self.releaseLed.on()
             await self.requestUpdatedSchedules()
+            self.releaseLed.off()
+
+        if self.schedules == None or self.wlan.isconnected():
+            print("Setting schedules")
             schedules = utils.getContent("schedules.json")
-            if schedules != False:
-                schedules = json.loads(schedules)
-
+            if schedules:
                 temp = []
-
+                schedules = json.loads(schedules)
                 for schedule in schedules:
 
                     datetime = schedule['scheduledDate'].split("T")[1]
                     datetime = datetime.split(":")
-
                     dow = utils.DIAS_SEMANA_SERVER[schedule['dayOfWeek']]
 
                     tempSchedule = {
@@ -59,14 +66,13 @@ class Dosador:
                     temp.append(tempSchedule)
 
                 self.schedules = temp
-        else:
-            print("Schedules already set")
 
         # Imprime os agendamentos (Apenas para testes)
-        if self.schedules:
-            for schedule in self.schedules:
-                print(schedule, type(schedule))
+        # if self.schedules:
+        #     for schedule in self.schedules:
+        #         print(schedule, type(schedule))
 
+    # Verifica se existe algum agendamento para o minuto atual
     async def checkSchedules(self):
         print("Checking schedules")
 
@@ -76,13 +82,14 @@ class Dosador:
 
         if self.schedules:
             for sch in self.schedules:
-                if sch.dow == dow and sch.h == h and sch.m == m:
+                if sch["dow"] == dow and sch["h"] == h and sch["m"] == m:
                     return sch
 
         return {}
 
     # REQUISIÇÕES
 
+    # Requisição de agendamentos atualizados e armazenamento em arquivo interno
     async def requestUpdatedSchedules(self):
         endpoint = f'ScheduleFunction?IdDosador={self.id}&KeyAccessApi={self.SERVER_APIKEY}'
         request = await self.makeRequest("GET", endpoint)
@@ -90,14 +97,18 @@ class Dosador:
             utils.storeContent('schedules.json', request.content)
             return request
 
+    # Método base para requisições assíncronas
     async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
         url = self.SERVER_BASE + endpoint
         try:
             return await uasyncio.wait_for(arequests._requests(method, url, data=data, json=json, headers=headers), timeout=timeout)
-        except uasyncio.TimeoutError as e:
-            # raise TimeoutError(e)
+        except TimeoutError as e:
             print("TimeoutError", e)
-            return False
+        except ConnectionError as e:
+            print("ConnectionError", e)
+        except Exception as e:
+            print("Exception", e)
+        return False
         
             
         
@@ -105,7 +116,7 @@ class Dosador:
     # TEMPO
 
     # Cria o objeto RTC (Real Time Clock) do equipamento
-    # Caso haja um datetime salvo, assume o horário fornecido por ele
+    # Caso haja um datetime salvo, assume este horário
     def createRTC(self):
         rtc = machine.RTC()
         datetime = utils.getContent("datetime.json")
@@ -115,10 +126,15 @@ class Dosador:
 
     # Sincroniza o relógio interno através de um servidor remoto
     async def updateByNetworkTime(self):
-        ntptime.settime()
-        utcTime = time.localtime(time.mktime(time.localtime()) + (self.utc * 3600))
-        utcTime = utils.convertTimeToRTC(utcTime)
-        self.rtc.init(utcTime)
+        try:
+            ntptime.settime()
+            utcTime = time.localtime(time.mktime(time.localtime()) + (self.utc * 3600))
+            utcTime = utils.convertTimeToRTC(utcTime)
+            self.rtc.init(utcTime)
+        except OSError as e:
+            self.releaseLed.on()
+            if e.errno == errno.ETIMEDOUT:
+                await self.updateByNetworkTime()
 
     # Retorna uma tupla com os dados de data e horário
     def getDatetime(self):
@@ -136,15 +152,15 @@ class Dosador:
 
     # Retorna a hora atual
     def getCurrentHour(self):
-        return self.getDatetime()[3]
+        return self.getDatetime()[4]
 
     # Retorna o minuto atual
     def getCurrentMinute(self):
-        return self.getDatetime()[4]
+        return self.getDatetime()[5]
 
     # Retorna um inteiro representando o dia da semana atual
     def getCurrentDayOfWeek(self):
-        return self.getDatetime()[6]
+        return self.getDatetime()[3]
 
 
 
@@ -159,8 +175,6 @@ class Dosador:
     # Busca as informações de SSID e senha do arquivo json salvo e tenta realizar a conexão
     async def wlanconnect(self):
         credentials = utils.getwlancredentials()
-        print("SSID", credentials["ssid"])
-        print("password", credentials["password"])
         self.wlan.connect(credentials["ssid"], credentials["password"])
         await self.wlanAttemptingToConnect()
         await self.updateByNetworkTime()
