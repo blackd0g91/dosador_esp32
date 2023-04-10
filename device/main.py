@@ -54,7 +54,19 @@ async def monitorSchedules(equipment):
 # Monitor de pesagem da balança
 async def monitorWeight(equipment):
     while True:
-        await uasyncio.sleep(10)
+        weight = equipment.checkWeightChange()
+        if weight >= 0:
+            await equipment.sendNewWeight()
+            print("Peso alterado: ", weight)
+        else:
+            print("Peso permaneceu.", equipment.lastWeight)
+        print("Lista de pesos", equipment.weightList)
+        await uasyncio.sleep(1)
+
+async def storeDatetime(equipment):
+    while True:
+        await uasyncio.sleep(60)
+        utils.storeContent("datetime.json", json.dumps(equipment.getDatetime()))
 
 # Loop padrão
 async def main(loopingLed):
@@ -74,4 +86,5 @@ loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
 loop.create_task(monitorWeight(dsdr))
 loop.create_task(monitorSchedules(dsdr))
+loop.create_task(storeDatetime(dsdr))
 loop.run_forever()

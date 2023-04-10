@@ -6,15 +6,17 @@ import arequests
 import utils
 import machine
 import uasyncio
+import random
 from arequests import Response
 from arequests import TimeoutError
 from arequests import ConnectionError
 
 class Dosador:
 
-    SERVER_BASE     = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
-    SERVER_APIKEY   = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
-    MAX_WEIGHT      = const(500)                                                    # Peso máximo suportado pelo recipiente
+    SERVER_BASE         = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
+    SERVER_APIKEY       = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
+    MAX_WEIGHT          = const(500)                                                    # Peso máximo suportado pelo recipiente
+    WEIGHT_LIST_SIZE    = const(10)
 
     def __init__(self, id, utc, wlanLed, releaseBtn, releaseLed):
         self.id             = id
@@ -25,6 +27,8 @@ class Dosador:
 
         self.schedules      = {}
         self.lastMinChecked = -1
+        self.lastWeight     = -1
+        self.weightList     = []
 
         self.wlan           = self.createWlan()
         self.rtc            = self.createRTC()
@@ -96,6 +100,10 @@ class Dosador:
         if isinstance(request, Response):
             utils.storeContent('schedules.json', request.content)
             return request
+
+    async def sendNewWeight(self):
+        # TODO criar requisição para envio de peso
+        return False
 
     # Método base para requisições assíncronas
     async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
@@ -197,6 +205,34 @@ class Dosador:
         else:
             print("Invalid quantity")
 
+    # PESO
+
+    def getCurrentWeight(self):
+        # TODO Buscar da balança real
+        return random.randint(0, 2)
+
+    def checkWeightChange(self):
+
+        # Atualiza a listagem de pesos com o mais atual
+        self.updateWeightList()
+
+        if len(self.weightList) > 9:
+            for weight in self.weightList:
+                if self.weightList.count(weight) > self.WEIGHT_LIST_SIZE / 2 and weight != self.lastWeight:
+                    self.lastWeight = weight
+                    self.weightList = []
+                    return weight
+        
+        return -1
+                    
+
+    def updateWeightList(self):
+        if len(self.weightList) >= self.WEIGHT_LIST_SIZE:
+            del self.weightList[0]
+        
+        currentWeight = self.getCurrentWeight()
+        self.weightList.append(currentWeight)
+
     # BOTÕES
 
     async def releaseAction(self):
@@ -208,7 +244,7 @@ class Dosador:
 
         # set schedules attribute
         # await self.updateSchedules()
-        utils.storeContent("datetime.json", json.dumps(self.getDatetime()))
+        
 
 
 
