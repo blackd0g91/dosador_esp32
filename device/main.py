@@ -2,10 +2,13 @@
 dsdr = Dosador(
     utils.getContent('id'), # ID
     -3,                     # UTC
-    dOUT14,                 # wlanLed
-    dIN33,                  # releaseButton
-    dOUT12                  # releaseLed
-    )
+    33,                     # releaseButton
+    14,                     # wlanLed
+    12,                     # releaseLed
+    22,                     # scaleD
+    23                      # scaleSCK
+
+)
 
 # Interrupts
 # dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)

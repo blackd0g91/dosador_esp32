@@ -2,36 +2,40 @@ import json
 import network
 import time
 import ntptime
-import arequests
+import _arequests
 import utils
 import machine
 import uasyncio
 import random
-from arequests import Response
-from arequests import TimeoutError
-from arequests import ConnectionError
+from machine import Pin
+from _arequests import Response
+from _arequests import TimeoutError
+from _arequests import ConnectionError
+from _hx711 import HX711
 
 class Dosador:
 
     SERVER_BASE         = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
     SERVER_APIKEY       = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
     MAX_WEIGHT          = const(500)                                                    # Peso máximo suportado pelo recipiente
-    WEIGHT_LIST_SIZE    = const(10)
+    WEIGHT_LIST_SIZE    = const(10)                                                     # Lista de últimos pesos registrados
 
-    def __init__(self, id, utc, wlanLed, releaseBtn, releaseLed):
-        self.id             = id
-        self.utc            = utc
-        self.wlanLed        = wlanLed
-        self.releaseBtn     = releaseBtn
-        self.releaseLed     = releaseLed
+    def __init__(self, id, utc, releaseBtn, wlanLed, releaseLed, scaleD, scaleSCK):
+        self.id             = id                                                        # ID do dosador
+        self.utc            = utc                                                       # UTC (-12 a 12)
 
-        self.schedules      = {}
-        self.lastMinChecked = -1
-        self.lastWeight     = -1
-        self.weightList     = []
+        self.releaseBtn     = Pin(releaseBtn, Pin.IN, Pin.PULL_UP)                      # Botão para liberação manual da ração
+        self.wlanLed        = Pin(wlanLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback da WLAN
+        self.releaseLed     = Pin(releaseLed, Pin.OUT, drive=Pin.DRIVE_0)               # Led de feedback de motor em funcionamento
 
-        self.wlan           = self.createWlan()
-        self.rtc            = self.createRTC()
+        self.schedules      = {}                                                        # Objeto contendo os agendamentos
+        self.lastMinChecked = -1                                                        # Flag para identificar qual foi o último minuto em que o agendamento foi verificado
+        self.lastWeight     = -1                                                        # Último peso registrado e enviado para o servidor
+        self.weightList     = []                                                        # Listagem de últimos pesos registrados para validação
+
+        self.wlan           = self.createWlan()                                         # Objeto da WLAN
+        self.rtc            = self.createRTC()                                          # Objeto de Real Time Clock
+        self.scale          = self.createScale(scaleD, scaleSCK)                        # Objeto da balança
 
     # AGENDAMENTOS
 
@@ -109,7 +113,7 @@ class Dosador:
     async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
         url = self.SERVER_BASE + endpoint
         try:
-            return await uasyncio.wait_for(arequests._requests(method, url, data=data, json=json, headers=headers), timeout=timeout)
+            return await uasyncio.wait_for(_arequests._requests(method, url, data=data, json=json, headers=headers), timeout=timeout)
         except TimeoutError as e:
             print("TimeoutError", e)
         except ConnectionError as e:
@@ -201,11 +205,17 @@ class Dosador:
 
     def releaseFood(self, quantity=0):
         if quantity > 0:
+            self.releaseLed.on()
             print("Releasing Food")
+            uasyncio.sleep(2)
+            self.releaseLed.off()
         else:
             print("Invalid quantity")
 
-    # PESO
+    # BALANÇA
+
+    def createScale(self, d, sck):
+        return HX711(d_out=d, pd_sck=sck)
 
     def getCurrentWeight(self):
         # TODO Buscar da balança real
