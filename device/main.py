@@ -7,11 +7,7 @@ dsdr = Dosador(
     12,                     # releaseLed
     22,                     # scaleD
     23                      # scaleSCK
-
 )
-
-# Interrupts
-# dIN33.irq(trigger=Pin.IRQ_RISING, handler=dsdr.releasePressed)
 
 # Gerenciamento da conexão
 async def monitorWlan(equipment):
@@ -56,8 +52,13 @@ async def monitorSchedules(equipment):
 
 # Monitor de pesagem da balança
 async def monitorWeight(equipment):
+
+    # Apenas para facilitar testes, após isso o tare deverá ser definido através de botão físico
+    equipment.tare = await equipment.getCurrentWeight()
+
+
     while True:
-        weight = equipment.checkWeightChange()
+        weight = await equipment.checkWeightChange()
         if weight >= 0:
             await equipment.sendNewWeight()
             print("Peso alterado: ", weight)

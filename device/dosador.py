@@ -25,6 +25,7 @@ class Dosador:
         self.utc            = utc                                                       # UTC (-12 a 12)
 
         self.releaseBtn     = Pin(releaseBtn, Pin.IN, Pin.PULL_UP)                      # Botão para liberação manual da ração
+
         self.wlanLed        = Pin(wlanLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback da WLAN
         self.releaseLed     = Pin(releaseLed, Pin.OUT, drive=Pin.DRIVE_0)               # Led de feedback de motor em funcionamento
 
@@ -33,9 +34,13 @@ class Dosador:
         self.lastWeight     = -1                                                        # Último peso registrado e enviado para o servidor
         self.weightList     = []                                                        # Listagem de últimos pesos registrados para validação
 
+
         self.wlan           = self.createWlan()                                         # Objeto da WLAN
         self.rtc            = self.createRTC()                                          # Objeto de Real Time Clock
         self.scale          = self.createScale(scaleD, scaleSCK)                        # Objeto da balança
+
+        # TODO inicializar o tare baseado em valor salvo em arquivo caso exista
+        self.tare           = 0                                                         # Offset para valor retornado pela balança (Tara)
 
     # AGENDAMENTOS
 
@@ -187,7 +192,10 @@ class Dosador:
     # Busca as informações de SSID e senha do arquivo json salvo e tenta realizar a conexão
     async def wlanconnect(self):
         credentials = utils.getwlancredentials()
-        self.wlan.connect(credentials["ssid"], credentials["password"])
+        try:
+            self.wlan.connect(credentials["ssid"], credentials["password"])
+        except Exception as e:
+            machine.reset()
         await self.wlanAttemptingToConnect()
         await self.updateByNetworkTime()
 
@@ -215,16 +223,17 @@ class Dosador:
     # BALANÇA
 
     def createScale(self, d, sck):
-        return HX711(d_out=d, pd_sck=sck)
+        return HX711(d_out=d, pd_sck=sck, channel=HX711.CHANNEL_A_64)
 
-    def getCurrentWeight(self):
+    async def getCurrentWeight(self):
         # TODO Buscar da balança real
-        return random.randint(0, 2)
+        return await self.scaleRead()
+        # return random.randint(0, 2)
 
-    def checkWeightChange(self):
+    async def checkWeightChange(self):
 
         # Atualiza a listagem de pesos com o mais atual
-        self.updateWeightList()
+        await self.updateWeightList()
 
         if len(self.weightList) > 9:
             for weight in self.weightList:
@@ -233,15 +242,43 @@ class Dosador:
                     self.weightList = []
                     return weight
         
-        return -1
-                    
+        return -1        
 
-    def updateWeightList(self):
+    async def updateWeightList(self):
         if len(self.weightList) >= self.WEIGHT_LIST_SIZE:
             del self.weightList[0]
         
-        currentWeight = self.getCurrentWeight()
+        currentWeight = await self.getCurrentWeight()
         self.weightList.append(currentWeight)
+
+    ########################################################################################
+
+    def resetScale(self):
+        self.scale.power_off()
+        self.scale.power_on()
+
+    def setTare(self):
+        self.tare = self.scale.read()
+
+    def scaleRawValue(self):
+        return self.scale.read() - self.tare
+
+    async def scaleRead(self, reads=10, delay_ms=1):
+        values = []
+        for _ in range(reads):
+            values.append(self.scaleRawValue())
+            await uasyncio.sleep_ms(delay_ms)
+        return await self._stabilizer(values)
+
+    @staticmethod
+    async def _stabilizer(values, deviation=10):
+        return round( sum(values) / len(values) )
+        # weights = []
+        # for prev in values:
+        #     weights.append(sum([1 for current in values if abs(prev - current) / (prev / 100) <= deviation]))
+        # return sorted(zip(values, weights), key=lambda x: x[1]).pop()[0]
+
+    ########################################################################################
 
     # BOTÕES
 

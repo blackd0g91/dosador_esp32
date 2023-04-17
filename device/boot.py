@@ -1,6 +1,7 @@
 print("=================================================")
 print("=================================================")
 print("=================================================")
+
 # This file is executed on every boot (including wake-boot from deepsleep)
 import time
 import network
@@ -13,6 +14,7 @@ import utils
 import uasyncio
 import esp
 import micropython
+
 
 # Digital Inputs
 # dIN4  = Pin(4,  Pin.IN, Pin.PULL_UP)
@@ -32,16 +34,11 @@ import micropython
 # dIN35 = Pin(35, Pin.IN, Pin.PULL_UP)    # Valor instável? Pino já utilizado?
 
 # Digital Outputs
-# dOUT2  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0) # Embed
+dOUT2  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0) # Embed
 # dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
-# dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
+dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 # dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
-# network.hostname('Dosador')
-# print("machine.unique_id", machine.unique())
-# print("esp.flash_size", esp.flash_size())
-# print("esp.flash_user_start", esp.flash_user_start())
-# print("micropython.mem_info", micropython.mem_info())
-utils.startupDiag(
-    (2, 12, 13, 14)
-)
+# utils.startupDiag(
+#     (2, 12, 13, 14)
+# )
