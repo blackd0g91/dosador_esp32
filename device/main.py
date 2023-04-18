@@ -2,8 +2,10 @@
 dsdr = Dosador(
     utils.getContent('id'), # ID
     -3,                     # UTC
+    32,                     # tareButton
     33,                     # releaseButton
     14,                     # wlanLed
+    13,                     # tareLed
     12,                     # releaseLed
     22,                     # scaleD
     23                      # scaleSCK
@@ -26,6 +28,17 @@ async def monitorReleaseBtn(equipment):
     while True:
         if equipment.releaseBtn.value() == 0:
             await equipment.releaseAction()
+        await uasyncio.sleep_ms(300)
+
+async def monitorTareBtn(equipment):
+    while True:
+        if equipment.tareBtn.value() == 0:
+            await uasyncio.sleep(5)
+            if equipment.tareBtn.value() == 0:
+                await equipment.setTare()
+                for _ in range(0, 30):
+                    equipment.tareLed.value(not equipment.tareLed.value())
+                    await uasyncio.sleep_ms(200)
         await uasyncio.sleep_ms(300)
 
 # Monitor de agendamentos
@@ -54,17 +67,18 @@ async def monitorSchedules(equipment):
 async def monitorWeight(equipment):
 
     # Apenas para facilitar testes, após isso o tare deverá ser definido através de botão físico
-    equipment.tare = await equipment.getCurrentWeight()
-
+    # equipment.tare = await equipment.scaleRead()
+    if not equipment.tare:
+        await equipment.setTare()
 
     while True:
         weight = await equipment.checkWeightChange()
         if weight >= 0:
             await equipment.sendNewWeight()
-            print("Peso alterado: ", weight)
-        else:
-            print("Peso permaneceu.", equipment.lastWeight)
-        print("Lista de pesos", equipment.weightList)
+            # print("Peso alterado: ", weight)
+        # else:
+            # print("Peso permaneceu.", equipment.lastWeight)
+        # print("Lista de pesos", equipment.weightList)
         await uasyncio.sleep(1)
 
 async def storeDatetime(equipment):
@@ -77,7 +91,7 @@ async def main(loopingLed):
     while True:
         loopingLed.value(not loopingLed.value())
         try:
-            print(dsdr.getReadableTime(), "     Temp: ", utils.getTemperature(), "ºC")
+            print("#", dsdr.getReadableTime(), utils.getTemperature(), "ºC", dsdr.lastWeight, dsdr.weightList)
         except Exception as e:
             print(e)
         await uasyncio.sleep(1)
@@ -85,10 +99,11 @@ async def main(loopingLed):
 
 
 loop = uasyncio.get_event_loop()
-loop.create_task(main(dOUT13))
+loop.create_task(main(dOUT2))
 loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
 loop.create_task(monitorWeight(dsdr))
 loop.create_task(monitorSchedules(dsdr))
 loop.create_task(storeDatetime(dsdr))
+loop.create_task(monitorTareBtn(dsdr))
 loop.run_forever()

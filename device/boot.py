@@ -34,7 +34,7 @@ import micropython
 # Digital Outputs
 dOUT2  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0) # Embed
 # dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
-dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
+# dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
 # dOUT14 = Pin(14, Pin.OUT, drive=Pin.DRIVE_0) # G
 
 # utils.startupDiag(

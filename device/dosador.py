@@ -20,27 +20,31 @@ class Dosador:
     MAX_WEIGHT          = const(500)                                                    # Peso máximo suportado pelo recipiente
     WEIGHT_LIST_SIZE    = const(10)                                                     # Lista de últimos pesos registrados
 
-    def __init__(self, id, utc, releaseBtn, wlanLed, releaseLed, scaleD, scaleSCK):
+    def __init__(self, id, utc, tareBtn, releaseBtn, wlanLed, tareLed, releaseLed, scaleD, scaleSCK):
         self.id             = id                                                        # ID do dosador
         self.utc            = utc                                                       # UTC (-12 a 12)
 
+        self.tareBtn        = Pin(tareBtn, Pin.IN, Pin.PULL_UP)                        # Botão para atualizar a tara da balança
         self.releaseBtn     = Pin(releaseBtn, Pin.IN, Pin.PULL_UP)                      # Botão para liberação manual da ração
 
         self.wlanLed        = Pin(wlanLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback da WLAN
+        self.tareLed        = Pin(tareLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback do botão de tara
         self.releaseLed     = Pin(releaseLed, Pin.OUT, drive=Pin.DRIVE_0)               # Led de feedback de motor em funcionamento
 
         self.schedules      = {}                                                        # Objeto contendo os agendamentos
         self.lastMinChecked = -1                                                        # Flag para identificar qual foi o último minuto em que o agendamento foi verificado
         self.lastWeight     = -1                                                        # Último peso registrado e enviado para o servidor
         self.weightList     = []                                                        # Listagem de últimos pesos registrados para validação
-
+        self.tare           = self.getMemoryTare()                                      # Offset para valor retornado pela balança (Tara)
 
         self.wlan           = self.createWlan()                                         # Objeto da WLAN
         self.rtc            = self.createRTC()                                          # Objeto de Real Time Clock
         self.scale          = self.createScale(scaleD, scaleSCK)                        # Objeto da balança
 
-        # TODO inicializar o tare baseado em valor salvo em arquivo caso exista
-        self.tare           = 0                                                         # Offset para valor retornado pela balança (Tara)
+        self.wlanLed.off()
+        self.tareLed.off()
+        self.releaseLed.off()
+        print("Tare was set to ", self.tare)
 
     # AGENDAMENTOS
 
@@ -79,11 +83,6 @@ class Dosador:
                     temp.append(tempSchedule)
 
                 self.schedules = temp
-
-        # Imprime os agendamentos (Apenas para testes)
-        # if self.schedules:
-        #     for schedule in self.schedules:
-        #         print(schedule, type(schedule))
 
     # Verifica se existe algum agendamento para o minuto atual
     async def checkSchedules(self):
@@ -225,11 +224,6 @@ class Dosador:
     def createScale(self, d, sck):
         return HX711(d_out=d, pd_sck=sck, channel=HX711.CHANNEL_A_64)
 
-    async def getCurrentWeight(self):
-        # TODO Buscar da balança real
-        return await self.scaleRead()
-        # return random.randint(0, 2)
-
     async def checkWeightChange(self):
 
         # Atualiza a listagem de pesos com o mais atual
@@ -248,17 +242,31 @@ class Dosador:
         if len(self.weightList) >= self.WEIGHT_LIST_SIZE:
             del self.weightList[0]
         
-        currentWeight = await self.getCurrentWeight()
+        currentWeight = await self.scaleRead()
         self.weightList.append(currentWeight)
+
+    def getMemoryTare(self):
+        print("Getting tare")
+        tare = utils.getContent("tare.txt");
+        if not tare or tare == '':
+            return False
+        else:
+            return float(tare)
+
+    async def setTare(self):
+        self.tareLed.on()
+        tare = self.scale.read()
+        utils.storeContent("tare.txt", str(tare))
+        self.tare = tare
+        print(f'New tare set to {tare}')
+        self.tareLed.off()
+        return tare
 
     ########################################################################################
 
     def resetScale(self):
         self.scale.power_off()
         self.scale.power_on()
-
-    def setTare(self):
-        self.tare = self.scale.read()
 
     def scaleRawValue(self):
         return self.scale.read() - self.tare

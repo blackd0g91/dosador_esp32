@@ -40,8 +40,8 @@ def getContent(filename):
         if hasattr(e, 'errno'):
             if e.errno == errno.ENOENT:
                 print(f'ERROR: File {filename} does not exist.')
-                # print(f'File {filename} does not exist, creating it...')
-                # storeContent(filename, '')
+                print(f'File {filename} does not exist, creating it...')
+                storeContent(filename, '')
         return False
 
 # Busca a temperatura atual do microcontrolador
