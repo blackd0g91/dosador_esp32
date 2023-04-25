@@ -1,3 +1,5 @@
+# Reset weightList when tare is reset
+
 import json
 import network
 import time
@@ -8,9 +10,7 @@ import machine
 import uasyncio
 import random
 from machine import Pin
-from _arequests import Response
-from _arequests import TimeoutError
-from _arequests import ConnectionError
+from _arequests import Response, TimeoutError, ConnectionError
 from _hx711 import HX711
 
 class Dosador:
@@ -19,6 +19,7 @@ class Dosador:
     SERVER_APIKEY       = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
     MAX_WEIGHT          = const(500)                                                    # Peso máximo suportado pelo recipiente
     WEIGHT_LIST_SIZE    = const(10)                                                     # Lista de últimos pesos registrados
+    SCALE_CALIBRATOR    = const(1120)                                                   # Valor para calibração da balança (8960/8)
 
     def __init__(self, id, utc, tareBtn, releaseBtn, wlanLed, tareLed, releaseLed, scaleD, scaleSCK):
         self.id             = id                                                        # ID do dosador
@@ -44,6 +45,7 @@ class Dosador:
         self.wlanLed.off()
         self.tareLed.off()
         self.releaseLed.off()
+
         print("Tare was set to ", self.tare)
 
     # AGENDAMENTOS
@@ -67,18 +69,21 @@ class Dosador:
             if schedules:
                 temp = []
                 schedules = json.loads(schedules)
-                for schedule in schedules:
 
-                    datetime = schedule['scheduledDate'].split("T")[1]
-                    datetime = datetime.split(":")
-                    dow = utils.DIAS_SEMANA_SERVER[schedule['dayOfWeek']]
+                # TODO Incluir aqui a verificação para liberação imediata
+                # if schedules['lastRelease']
+
+                for schedule in schedules['schedules']:
+
+                    time = schedule['scheduledDate'].split(":")
+                    dow = utils.DIAS_SEMANA_SERVER[ schedule['dayOfWeek'] ]
 
                     tempSchedule = {
                         'id'    : schedule['idSchedule'],   # ID do Agendamento
                         'qtt'   : schedule['quantity'],     # Quantidade de alimento a ser liberado (em gramas)
                         'dow'   : dow,                      # Dia da semana do agendamento
-                        'h'     : datetime[0],              # Hora do agendamento
-                        'm'     : datetime[1]               # Minuto do agendamento
+                        'h'     : time[0],                  # Hora do agendamento
+                        'm'     : time[1]                   # Minuto do agendamento
                     }
                     temp.append(tempSchedule)
 
@@ -110,7 +115,14 @@ class Dosador:
             return request
 
     async def sendNewWeight(self):
-        # TODO criar requisição para envio de peso
+        endpoint = f'AddWeightFunction?KeyAccessApi={self.SERVER_APIKEY}'
+        parameters = {
+            'idDosador': self.id,
+            'weight'   : self.lastWeight
+        }
+        jsonString = json.dumps(parameters)
+        request = await self.makeRequest("POST", endpoint, json=jsonString)
+        print(request)
         return False
 
     # Método base para requisições assíncronas
@@ -211,7 +223,7 @@ class Dosador:
     # MOTOR
 
     def releaseFood(self, quantity=0):
-        if quantity > 0:
+        if quantity > 0 and quantity <= self.MAX_WEIGHT:
             self.releaseLed.on()
             print("Releasing Food")
             uasyncio.sleep(2)
@@ -259,6 +271,7 @@ class Dosador:
         utils.storeContent("tare.txt", str(tare))
         self.tare = tare
         print(f'New tare set to {tare}')
+        self.weightList = []
         self.tareLed.off()
         return tare
 
@@ -269,7 +282,7 @@ class Dosador:
         self.scale.power_on()
 
     def scaleRawValue(self):
-        return self.scale.read() - self.tare
+        return ( ( self.scale.read() - self.tare ) / self.SCALE_CALIBRATOR )
 
     async def scaleRead(self, reads=10, delay_ms=1):
         values = []
@@ -299,6 +312,7 @@ class Dosador:
 
         # set schedules attribute
         # await self.updateSchedules()
+        await self.sendNewWeight()
         
 
 

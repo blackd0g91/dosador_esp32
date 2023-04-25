@@ -51,9 +51,8 @@ def getTemperature():
 
 # Resgata dados da WLAN do arquivo
 def getwlancredentials():
-    wlanFile = open("wlan.json", "r")
-    wlanInfo = json.loads(wlanFile.read())
-    wlanFile.close()
+    wlanFile = getContent("wlan.json")
+    wlanInfo = json.loads(wlanFile)
     return wlanInfo
 
 # Converte do formato do módulo time para o formato da classe RTC

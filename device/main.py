@@ -4,7 +4,7 @@ dsdr = Dosador(
     -3,                     # UTC
     32,                     # tareButton
     33,                     # releaseButton
-    14,                     # wlanLed
+    27,                     # wlanLed
     13,                     # tareLed
     12,                     # releaseLed
     22,                     # scaleD
@@ -30,15 +30,16 @@ async def monitorReleaseBtn(equipment):
             await equipment.releaseAction()
         await uasyncio.sleep_ms(300)
 
+# Monitor para o botão de tara
 async def monitorTareBtn(equipment):
     while True:
         if equipment.tareBtn.value() == 0:
             await uasyncio.sleep(5)
             if equipment.tareBtn.value() == 0:
                 await equipment.setTare()
-                for _ in range(0, 30):
+                for _ in range(0, 50):
                     equipment.tareLed.value(not equipment.tareLed.value())
-                    await uasyncio.sleep_ms(200)
+                    await uasyncio.sleep_ms(100)
         await uasyncio.sleep_ms(300)
 
 # Monitor de agendamentos
@@ -78,12 +79,13 @@ async def monitorWeight(equipment):
             # print("Peso alterado: ", weight)
         # else:
             # print("Peso permaneceu.", equipment.lastWeight)
-        # print("Lista de pesos", equipment.weightList)
+        print("Lista de pesos", equipment.weightList)
         await uasyncio.sleep(1)
 
-async def storeDatetime(equipment):
+# Armazena o horário atual em arquivo, para retomar em caso de queda de energia
+async def storeDatetime(equipment, seconds):
     while True:
-        await uasyncio.sleep(60)
+        await uasyncio.sleep(seconds)
         utils.storeContent("datetime.json", json.dumps(equipment.getDatetime()))
 
 # Loop padrão
@@ -91,7 +93,7 @@ async def main(loopingLed):
     while True:
         loopingLed.value(not loopingLed.value())
         try:
-            print("#", dsdr.getReadableTime(), utils.getTemperature(), "ºC", dsdr.lastWeight, dsdr.weightList)
+            print("#", dsdr.getReadableTime(), utils.getTemperature(), "ºC", dsdr.lastWeight)
         except Exception as e:
             print(e)
         await uasyncio.sleep(1)
@@ -104,6 +106,6 @@ loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
 loop.create_task(monitorWeight(dsdr))
 loop.create_task(monitorSchedules(dsdr))
-loop.create_task(storeDatetime(dsdr))
+loop.create_task(storeDatetime(dsdr, 60))
 loop.create_task(monitorTareBtn(dsdr))
 loop.run_forever()

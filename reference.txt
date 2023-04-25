@@ -146,3 +146,13 @@ POST body:
     "idDosador": {guid},
     "weight": {number}
 }
+
+
+
+
+
+# dOUT12 = Pin(12, Pin.OUT, drive=Pin.DRIVE_0) # R
+# dOUT13 = Pin(13, Pin.OUT, drive=Pin.DRIVE_0) # B
+# dOUT14 = Pin(27, Pin.OUT, drive=Pin.DRIVE_0) # G
+# dIN34 = Pin(34, Pin.IN, Pin.PULL_UP)    # Valor instável? Pino já utilizado?
+# dIN35 = Pin(35, Pin.IN, Pin.PULL_UP)    # Valor instável? Pino já utilizado?
