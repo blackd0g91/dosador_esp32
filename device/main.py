@@ -34,12 +34,9 @@ async def monitorReleaseBtn(equipment):
 async def monitorTareBtn(equipment):
     while True:
         if equipment.tareBtn.value() == 0:
-            await uasyncio.sleep(5)
+            await uasyncio.sleep(1)
             if equipment.tareBtn.value() == 0:
-                await equipment.setTare()
-                for _ in range(0, 50):
-                    equipment.tareLed.value(not equipment.tareLed.value())
-                    await uasyncio.sleep_ms(100)
+                await equipment.tareAction()
         await uasyncio.sleep_ms(300)
 
 # Monitor de agendamentos
@@ -47,17 +44,19 @@ async def monitorSchedules(equipment):
     while True:
         await uasyncio.sleep(30)
         thisMinute = equipment.getCurrentMinute()
-        # print(f'Starting check for minute {thisMinute}')
         if equipment.lastMinChecked != thisMinute or equipment.lastMinChecked == -1:
+
             print("Different minute, updating schedules")
+
             equipment.lastMinChecked = thisMinute
+
             await equipment.updateSchedules()
+
             schedule = await equipment.checkSchedules()
 
             if schedule:
-                dOUT12.on()
                 print(f'Schedule found, releasing {schedule["qtt"]} grams')
-                # equipment.releaseFood(schedule["qtt"])
+                await equipment.releaseFood(schedule["qtt"])
             else:
                 print("No schedules for this minute")
 
@@ -73,13 +72,8 @@ async def monitorWeight(equipment):
         await equipment.setTare()
 
     while True:
-        weight = await equipment.checkWeightChange()
-        if weight >= 0:
-            await equipment.sendNewWeight()
-            # print("Peso alterado: ", weight)
-        # else:
-            # print("Peso permaneceu.", equipment.lastWeight)
-        print("Lista de pesos", equipment.weightList)
+        await equipment.checkWeightChange()
+        # print("Lista de pesos", equipment.weightList)
         await uasyncio.sleep(1)
 
 # Armazena o horário atual em arquivo, para retomar em caso de queda de energia
@@ -93,11 +87,10 @@ async def main(loopingLed):
     while True:
         loopingLed.value(not loopingLed.value())
         try:
-            print("#", dsdr.getReadableTime(), utils.getTemperature(), "ºC", dsdr.lastWeight)
+            print("#", dsdr.getReadableTime(), utils.getTemperature(), "ºC", dsdr.lastWeight, dsdr.weightList)
         except Exception as e:
             print(e)
         await uasyncio.sleep(1)
-
 
 
 loop = uasyncio.get_event_loop()

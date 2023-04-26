@@ -77,24 +77,5 @@ def twoDigit(number):
         return str(number)
 
 # Método para verificar funcionamento e atributos básicos do microcontrolador
-def startupDiag(leds=None):
-
-    # LEDS
-    if leds != None:
-        for led in leds:
-            led.on()
-            time.sleep_ms(100)
-        time.sleep(1)
-        for led in leds:
-            led.off()
-
-    # Frequência da CPU
+def startupDiag():
     print("CPU Frequency:", machine.freq() / 1000000, "MHz")
-
-    # Inicializações
-    startups = getContent("startups.txt")
-    if startups == False or startups == '':
-        startups = 0
-    startups = str(int(startups) + 1)
-    print("Startups: ", startups)
-    storeContent("startups.txt", startups)

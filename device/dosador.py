@@ -1,4 +1,4 @@
-# Reset weightList when tare is reset
+# Release action
 
 import json
 import network
@@ -34,7 +34,7 @@ class Dosador:
 
         self.schedules      = {}                                                        # Objeto contendo os agendamentos
         self.lastMinChecked = -1                                                        # Flag para identificar qual foi o último minuto em que o agendamento foi verificado
-        self.lastWeight     = -1                                                        # Último peso registrado e enviado para o servidor
+        self.lastWeight     = self.getMemoryWeight()                                    # Último peso registrado e enviado para o servidor
         self.weightList     = []                                                        # Listagem de últimos pesos registrados para validação
         self.tare           = self.getMemoryTare()                                      # Offset para valor retornado pela balança (Tara)
 
@@ -71,7 +71,11 @@ class Dosador:
                 schedules = json.loads(schedules)
 
                 # TODO Incluir aqui a verificação para liberação imediata
-                # if schedules['lastRelease']
+                if schedules['lastRelease'] != None:
+                    print(schedules['lastRelease'], type(schedules['lastRelease']))
+                    # Avaliar horário, caso seja mais antigo que 5 minutos, desconsiderar
+                else:
+                    print("lastRelease not set")
 
                 for schedule in schedules['schedules']:
 
@@ -114,16 +118,17 @@ class Dosador:
             utils.storeContent('schedules.json', request.content)
             return request
 
-    async def sendNewWeight(self):
+    async def sendNewWeight(self, weight):
         endpoint = f'AddWeightFunction?KeyAccessApi={self.SERVER_APIKEY}'
         parameters = {
             'idDosador': self.id,
-            'weight'   : self.lastWeight
+            'weight'   : weight
         }
-        jsonString = json.dumps(parameters)
-        request = await self.makeRequest("POST", endpoint, json=jsonString)
-        print(request)
-        return False
+        request = await self.makeRequest("POST", endpoint, json=parameters)
+        if(request.status_code == 201):
+            return True
+        else:
+            return False
 
     # Método base para requisições assíncronas
     async def makeRequest(self, method, endpoint, data=None, json=None, headers={}, timeout=10):
@@ -160,7 +165,6 @@ class Dosador:
             utcTime = utils.convertTimeToRTC(utcTime)
             self.rtc.init(utcTime)
         except OSError as e:
-            self.releaseLed.on()
             if e.errno == errno.ETIMEDOUT:
                 await self.updateByNetworkTime()
 
@@ -222,11 +226,11 @@ class Dosador:
 
     # MOTOR
 
-    def releaseFood(self, quantity=0):
+    async def releaseFood(self, quantity=0):
         if quantity > 0 and quantity <= self.MAX_WEIGHT:
             self.releaseLed.on()
-            print("Releasing Food")
-            uasyncio.sleep(2)
+            while self.scaleRead() < quantity:
+                await uasyncio.sleep_ms(200)
             self.releaseLed.off()
         else:
             print("Invalid quantity")
@@ -244,9 +248,14 @@ class Dosador:
         if len(self.weightList) > 9:
             for weight in self.weightList:
                 if self.weightList.count(weight) > self.WEIGHT_LIST_SIZE / 2 and weight != self.lastWeight:
-                    self.lastWeight = weight
-                    self.weightList = []
-                    return weight
+                    if self.sendNewWeight(weight):
+                        self.lastWeight = weight
+                        weight = str(weight)
+                        utils.storeContent('lastWeight.txt', weight)
+                        self.weightList = []
+                        return self.lastWeight
+                    else:
+                        return False
         
         return -1        
 
@@ -258,18 +267,30 @@ class Dosador:
         self.weightList.append(currentWeight)
 
     def getMemoryTare(self):
-        print("Getting tare")
+        print("Getting memory tare")
         tare = utils.getContent("tare.txt");
         if not tare or tare == '':
             return False
         else:
             return float(tare)
 
-    async def setTare(self):
+    def getMemoryWeight(self):
+        print("Getting memory weight")
+        weight = utils.getContent("lastWeight.txt")
+        if not weight or weight == '':
+            return -1
+        else:
+            return int(weight)
+
+    async def setTare(self, count=100, delay_ms=1):
         self.tareLed.on()
-        tare = self.scale.read()
-        utils.storeContent("tare.txt", str(tare))
+        tares = []
+        for _ in range(0, count):
+            tares.append(self.scale.read())
+            await uasyncio.sleep_ms(delay_ms)
+        tare = sum(tares)/len(tares)
         self.tare = tare
+        utils.storeContent("tare.txt", str(tare))
         print(f'New tare set to {tare}')
         self.weightList = []
         self.tareLed.off()
@@ -277,13 +298,11 @@ class Dosador:
 
     ########################################################################################
 
-    def resetScale(self):
-        self.scale.power_off()
-        self.scale.power_on()
-
+    # Retorna o valor atual de uma leitura da balança, removendo a tara e aplicando a calibração
     def scaleRawValue(self):
         return ( ( self.scale.read() - self.tare ) / self.SCALE_CALIBRATOR )
 
+    # Retorna o valor médio de múltiplas leituras
     async def scaleRead(self, reads=10, delay_ms=1):
         values = []
         for _ in range(reads):
@@ -293,6 +312,7 @@ class Dosador:
 
     @staticmethod
     async def _stabilizer(values, deviation=10):
+        # print(sum(values)/len(values))
         return round( sum(values) / len(values) )
         # weights = []
         # for prev in values:
@@ -303,6 +323,15 @@ class Dosador:
 
     # BOTÕES
 
+    # Ação do botão de tara
+    async def tareAction(self):
+        await self.setTare()
+        for _ in range(0, 25):
+            self.tareLed.value(not self.tareLed.value())
+            await uasyncio.sleep_ms(200)
+        self.tareLed.off()
+
+    # Ação do botão de liberação manual
     async def releaseAction(self):
         print("Pressed")
         self.releaseLed.on()
@@ -312,7 +341,7 @@ class Dosador:
 
         # set schedules attribute
         # await self.updateSchedules()
-        await self.sendNewWeight()
+        # await self.sendNewWeight()
         
 
 
