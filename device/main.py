@@ -66,8 +66,6 @@ async def monitorSchedules(equipment):
 # Monitor de pesagem da balança
 async def monitorWeight(equipment):
 
-    # Apenas para facilitar testes, após isso o tare deverá ser definido através de botão físico
-    # equipment.tare = await equipment.scaleRead()
     if not equipment.tare:
         await equipment.setTare()
 
@@ -83,7 +81,10 @@ async def storeDatetime(equipment, seconds):
         utils.storeContent("datetime.json", json.dumps(equipment.getDatetime()))
 
 # Loop padrão
-async def main(loopingLed):
+async def main():
+
+    loopingLed  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0)
+
     while True:
         loopingLed.value(not loopingLed.value())
         try:
@@ -94,7 +95,7 @@ async def main(loopingLed):
 
 
 loop = uasyncio.get_event_loop()
-loop.create_task(main(dOUT2))
+loop.create_task(main())
 loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
 loop.create_task(monitorWeight(dsdr))

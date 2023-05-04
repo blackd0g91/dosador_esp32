@@ -14,6 +14,4 @@ import uasyncio
 import esp
 import micropython
 
-dOUT2  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0) # Embed
-
 utils.startupDiag();

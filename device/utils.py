@@ -6,21 +6,11 @@ import machine
 
 try:
     os.listdir('storage')
-    print('Storage folder already exists')
 except OSError:
     print('Creating storage folder')
     os.mkdir('storage')
 
-DIAS_SEMANA = (
-    'Segunda-Feira',
-    'Terça-Feira',
-    'Quarta-Feira',
-    'Quinta-Feira',
-    'Sexta-Feira',
-    'Sábado',
-    'Domingo'
-    )
-
+DIAS_SEMANA = ('SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM')
 DIAS_SEMANA_SERVER = (6, 0, 1, 2, 3, 4, 5)
 
 # Armazena uma string em arquivo, caso já exista, sobrescreve o conteúdo
@@ -58,15 +48,15 @@ def getwlancredentials():
 # Converte do formato do módulo time para o formato da classe RTC
 def convertTimeToRTC(datetime):
     return (
-            datetime[0],
-            datetime[1],
-            datetime[2],
-            datetime[6],
-            datetime[3],
-            datetime[4],
-            datetime[5],
-            datetime[6]
-        )
+        datetime[0],
+        datetime[1],
+        datetime[2],
+        datetime[6],
+        datetime[3],
+        datetime[4],
+        datetime[5],
+        datetime[6]
+    )
 
 # Normaliza números abaixo de 10 para duas casas
 # Ex: 1 -> 01
@@ -76,6 +66,6 @@ def twoDigit(number):
     else:
         return str(number)
 
-# Método para verificar funcionamento e atributos básicos do microcontrolador
+# Método para imprimir valores do microcontrolador
 def startupDiag():
     print("CPU Frequency:", machine.freq() / 1000000, "MHz")

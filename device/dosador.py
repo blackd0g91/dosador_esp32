@@ -1,5 +1,3 @@
-# Release action
-
 import json
 import network
 import time
@@ -25,7 +23,7 @@ class Dosador:
         self.id             = id                                                        # ID do dosador
         self.utc            = utc                                                       # UTC (-12 a 12)
 
-        self.tareBtn        = Pin(tareBtn, Pin.IN, Pin.PULL_UP)                        # Botão para atualizar a tara da balança
+        self.tareBtn        = Pin(tareBtn, Pin.IN, Pin.PULL_UP)                         # Botão para atualizar a tara da balança
         self.releaseBtn     = Pin(releaseBtn, Pin.IN, Pin.PULL_UP)                      # Botão para liberação manual da ração
 
         self.wlanLed        = Pin(wlanLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback da WLAN
@@ -42,11 +40,20 @@ class Dosador:
         self.rtc            = self.createRTC()                                          # Objeto de Real Time Clock
         self.scale          = self.createScale(scaleD, scaleSCK)                        # Objeto da balança
 
+        self.wlanLed.on()
+        self.tareLed.on()
+        self.releaseLed.on()
+        
+        print("Tare Button: ", self.tareBtn, " - Tare LED: ", self.tareLed)
+        print("Release Button:", self.releaseBtn, " - Release LED: ", self.releaseLed)
+        print("WLAN LED: ", self.wlanLed)
+        print("Scale D: ", scaleD, "Scale SCK", scaleSCK)
+        print("Last Weight: ", self.lastWeight)
+        print("Tare: ", self.tare)
+
         self.wlanLed.off()
         self.tareLed.off()
         self.releaseLed.off()
-
-        print("Tare was set to ", self.tare)
 
     # AGENDAMENTOS
 
@@ -228,14 +235,37 @@ class Dosador:
 
     async def releaseFood(self, quantity=0):
         if quantity > 0 and quantity <= self.MAX_WEIGHT:
+
             self.releaseLed.on()
-            while self.scaleRead() < quantity:
+
+            reading = -1        # Leitura da balança
+            retryCount = 0      # Contador para retentativas caso o valor da balança não se altere(estoque vazio)
+            maxRetries = 25     # Máximo de tentativas para aguardar até que o peso seja alterado(estoque vazio)
+
+            while True:
+                newReading = await self.scaleRead()
+
+                if(newReading == reading):
+                    retryCount = retryCount + 1
+                else:
+                    retryCount = 0
+
+                reading = newReading
+
+                if reading >= quantity or retryCount >= maxRetries:
+                    break
+
                 await uasyncio.sleep_ms(200)
+                
+
             self.releaseLed.off()
+
         else:
             print("Invalid quantity")
 
+    #
     # BALANÇA
+    #
 
     def createScale(self, d, sck):
         return HX711(d_out=d, pd_sck=sck, channel=HX711.CHANNEL_A_64)
@@ -296,8 +326,6 @@ class Dosador:
         self.tareLed.off()
         return tare
 
-    ########################################################################################
-
     # Retorna o valor atual de uma leitura da balança, removendo a tara e aplicando a calibração
     def scaleRawValue(self):
         return ( ( self.scale.read() - self.tare ) / self.SCALE_CALIBRATOR )
@@ -319,9 +347,9 @@ class Dosador:
         #     weights.append(sum([1 for current in values if abs(prev - current) / (prev / 100) <= deviation]))
         # return sorted(zip(values, weights), key=lambda x: x[1]).pop()[0]
 
-    ########################################################################################
-
+    #
     # BOTÕES
+    #
 
     # Ação do botão de tara
     async def tareAction(self):
