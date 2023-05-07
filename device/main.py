@@ -11,6 +11,10 @@ dsdr = Dosador(
     23                      # scaleSCK
 )
 
+print("=================================================")
+print("=================================================")
+print("=================================================")
+
 # Gerenciamento da conexão
 async def monitorWlan(equipment):
 
@@ -57,8 +61,6 @@ async def monitorSchedules(equipment):
             if schedule:
                 print(f'Schedule found, releasing {schedule["qtt"]} grams')
                 await equipment.releaseFood(schedule["qtt"])
-            else:
-                print("No schedules for this minute")
 
         else:
             print("Minute already checked, skipping...")
@@ -66,14 +68,11 @@ async def monitorSchedules(equipment):
 # Monitor de pesagem da balança
 async def monitorWeight(equipment):
 
-    # Apenas para facilitar testes, após isso o tare deverá ser definido através de botão físico
-    # equipment.tare = await equipment.scaleRead()
     if not equipment.tare:
         await equipment.setTare()
 
     while True:
         await equipment.checkWeightChange()
-        # print("Lista de pesos", equipment.weightList)
         await uasyncio.sleep(1)
 
 # Armazena o horário atual em arquivo, para retomar em caso de queda de energia
@@ -83,7 +82,10 @@ async def storeDatetime(equipment, seconds):
         utils.storeContent("datetime.json", json.dumps(equipment.getDatetime()))
 
 # Loop padrão
-async def main(loopingLed):
+async def main():
+
+    loopingLed  = Pin(2,  Pin.OUT, drive=Pin.DRIVE_0)
+
     while True:
         loopingLed.value(not loopingLed.value())
         try:
@@ -94,7 +96,7 @@ async def main(loopingLed):
 
 
 loop = uasyncio.get_event_loop()
-loop.create_task(main(dOUT2))
+loop.create_task(main())
 loop.create_task(monitorWlan(dsdr))
 loop.create_task(monitorReleaseBtn(dsdr))
 loop.create_task(monitorWeight(dsdr))

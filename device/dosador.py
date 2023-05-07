@@ -1,5 +1,3 @@
-# Release action
-
 import json
 import network
 import time
@@ -15,17 +13,18 @@ from _hx711 import HX711
 
 class Dosador:
 
-    SERVER_BASE         = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
-    SERVER_APIKEY       = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
-    MAX_WEIGHT          = const(500)                                                    # Peso máximo suportado pelo recipiente
-    WEIGHT_LIST_SIZE    = const(10)                                                     # Lista de últimos pesos registrados
-    SCALE_CALIBRATOR    = const(1120)                                                   # Valor para calibração da balança (8960/8)
+    SERVER_BASE             = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
+    SERVER_APIKEY           = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
+    MAX_WEIGHT              = const(200)                                                    # Peso máximo suportado pelo recipiente
+    WEIGHT_LIST_SIZE        = const(4)                                                     # Lista de últimos pesos registrados
+    SCALE_CALIBRATOR        = const(1120)                                                   # Valor para calibração da balança (8960/8)
+    MAX_RELEASENOW_MINUTES  = const(5)
 
     def __init__(self, id, utc, tareBtn, releaseBtn, wlanLed, tareLed, releaseLed, scaleD, scaleSCK):
         self.id             = id                                                        # ID do dosador
         self.utc            = utc                                                       # UTC (-12 a 12)
 
-        self.tareBtn        = Pin(tareBtn, Pin.IN, Pin.PULL_UP)                        # Botão para atualizar a tara da balança
+        self.tareBtn        = Pin(tareBtn, Pin.IN, Pin.PULL_UP)                         # Botão para atualizar a tara da balança
         self.releaseBtn     = Pin(releaseBtn, Pin.IN, Pin.PULL_UP)                      # Botão para liberação manual da ração
 
         self.wlanLed        = Pin(wlanLed, Pin.OUT, drive=Pin.DRIVE_0)                  # Led de feedback da WLAN
@@ -42,11 +41,20 @@ class Dosador:
         self.rtc            = self.createRTC()                                          # Objeto de Real Time Clock
         self.scale          = self.createScale(scaleD, scaleSCK)                        # Objeto da balança
 
+        self.wlanLed.on()
+        self.tareLed.on()
+        self.releaseLed.on()
+        
+        print("Tare Button: ", self.tareBtn, " - Tare LED: ", self.tareLed)
+        print("Release Button:", self.releaseBtn, " - Release LED: ", self.releaseLed)
+        print("WLAN LED: ", self.wlanLed)
+        print("Scale D: ", scaleD, "Scale SCK", scaleSCK)
+        print("Last Weight: ", self.lastWeight)
+        print("Tare: ", self.tare)
+
         self.wlanLed.off()
         self.tareLed.off()
         self.releaseLed.off()
-
-        print("Tare was set to ", self.tare)
 
     # AGENDAMENTOS
 
@@ -59,9 +67,7 @@ class Dosador:
     async def updateSchedules(self):
 
         if self.wlan.isconnected():
-            self.releaseLed.on()
             await self.requestUpdatedSchedules()
-            self.releaseLed.off()
 
         if self.schedules == None or self.wlan.isconnected():
             print("Setting schedules")
@@ -70,24 +76,31 @@ class Dosador:
                 temp = []
                 schedules = json.loads(schedules)
 
-                # TODO Incluir aqui a verificação para liberação imediata
                 if schedules['lastRelease'] != None:
-                    print(schedules['lastRelease'], type(schedules['lastRelease']))
-                    # Avaliar horário, caso seja mais antigo que 5 minutos, desconsiderar
-                else:
-                    print("lastRelease not set")
+                    lr = schedules['lastRelease'].split('T')
+                    lrD = lr[0].split('-')
+                    lrT = lr[1].split(':')
+
+                    nowSeconds = time.mktime(time.localtime()) # + (self.utc * 3600)
+                    lrSeconds = time.mktime( (int(lrD[0]), int(lrD[1]), int(lrD[2]), int(lrT[0]), int(lrT[1]), int(lrT[2]), 0, 0))
+                    comp = nowSeconds - lrSeconds
+
+                    if(comp < 60 * self.MAX_RELEASENOW_MINUTES):
+                        await self.releaseFood(self.MAX_WEIGHT)
+                    else:
+                        print("Old lastRelease, skipping...", comp)
 
                 for schedule in schedules['schedules']:
 
-                    time = schedule['scheduledDate'].split(":")
+                    timeS = schedule['scheduledDate'].split(":")
                     dow = utils.DIAS_SEMANA_SERVER[ schedule['dayOfWeek'] ]
 
                     tempSchedule = {
                         'id'    : schedule['idSchedule'],   # ID do Agendamento
-                        'qtt'   : schedule['quantity'],     # Quantidade de alimento a ser liberado (em gramas)
-                        'dow'   : dow,                      # Dia da semana do agendamento
-                        'h'     : time[0],                  # Hora do agendamento
-                        'm'     : time[1]                   # Minuto do agendamento
+                        'qtt'   : int(schedule['quantity']),     # Quantidade de alimento a ser liberado (em gramas)
+                        'dow'   : int(dow),                      # Dia da semana do agendamento
+                        'h'     : int(timeS[0]),                  # Hora do agendamento
+                        'm'     : int(timeS[1])                   # Minuto do agendamento
                     }
                     temp.append(tempSchedule)
 
@@ -97,9 +110,9 @@ class Dosador:
     async def checkSchedules(self):
         print("Checking schedules")
 
-        dow = self.getCurrentDayOfWeek()
-        m   = self.getCurrentMinute()
-        h   = self.getCurrentHour()
+        dow = int(self.getCurrentDayOfWeek())
+        m   = int(self.getCurrentMinute())
+        h   = int(self.getCurrentHour())
 
         if self.schedules:
             for sch in self.schedules:
@@ -228,14 +241,38 @@ class Dosador:
 
     async def releaseFood(self, quantity=0):
         if quantity > 0 and quantity <= self.MAX_WEIGHT:
+
             self.releaseLed.on()
-            while self.scaleRead() < quantity:
-                await uasyncio.sleep_ms(200)
+
+            reading = -1        # Leitura da balança
+            retryCount = 0      # Contador para retentativas caso o valor da balança não se altere(estoque vazio)
+            maxRetries = 10     # Máximo de tentativas para aguardar até que o peso seja alterado(estoque vazio)
+
+            while True:
+                print("quantity", quantity, "retryCount", retryCount, "reading", reading)
+                newReading = await self.scaleRead()
+
+                if(newReading == reading):
+                    retryCount = retryCount + 1
+                else:
+                    retryCount = 0
+
+                reading = newReading
+
+                if reading >= quantity or retryCount >= maxRetries:
+                    break
+
+                await uasyncio.sleep_ms(50)
+                
+
             self.releaseLed.off()
+
         else:
             print("Invalid quantity")
 
+    #
     # BALANÇA
+    #
 
     def createScale(self, d, sck):
         return HX711(d_out=d, pd_sck=sck, channel=HX711.CHANNEL_A_64)
@@ -245,10 +282,11 @@ class Dosador:
         # Atualiza a listagem de pesos com o mais atual
         await self.updateWeightList()
 
-        if len(self.weightList) > 9:
+        if len(self.weightList) >= self.WEIGHT_LIST_SIZE:
             for weight in self.weightList:
                 if self.weightList.count(weight) > self.WEIGHT_LIST_SIZE / 2 and weight != self.lastWeight:
-                    if self.sendNewWeight(weight):
+                    sendWeight = await self.sendNewWeight(weight)
+                    if sendWeight:
                         self.lastWeight = weight
                         weight = str(weight)
                         utils.storeContent('lastWeight.txt', weight)
@@ -296,8 +334,6 @@ class Dosador:
         self.tareLed.off()
         return tare
 
-    ########################################################################################
-
     # Retorna o valor atual de uma leitura da balança, removendo a tara e aplicando a calibração
     def scaleRawValue(self):
         return ( ( self.scale.read() - self.tare ) / self.SCALE_CALIBRATOR )
@@ -312,16 +348,11 @@ class Dosador:
 
     @staticmethod
     async def _stabilizer(values, deviation=10):
-        # print(sum(values)/len(values))
         return round( sum(values) / len(values) )
-        # weights = []
-        # for prev in values:
-        #     weights.append(sum([1 for current in values if abs(prev - current) / (prev / 100) <= deviation]))
-        # return sorted(zip(values, weights), key=lambda x: x[1]).pop()[0]
 
-    ########################################################################################
-
+    #
     # BOTÕES
+    #
 
     # Ação do botão de tara
     async def tareAction(self):
@@ -336,16 +367,7 @@ class Dosador:
         print("Pressed")
         self.releaseLed.on()
 
-
-
-
-        # set schedules attribute
-        # await self.updateSchedules()
-        # await self.sendNewWeight()
-        
-
-
-
+        await self.releaseFood(self.MAX_WEIGHT);
 
         while self.releaseBtn.value() == 0:
             await uasyncio.sleep_ms(100)
