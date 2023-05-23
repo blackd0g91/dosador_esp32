@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Pet</title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin-left: auto;
+            margin-right: auto;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: cornflowerblue;
+        }
+        
+        td {
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="test"></div>
+
+    <h2>Monitor Pet</h2>
+    <p>Insira abaixo as informações de acesso da sua rede Wi-Fi e em seguida clique no botão <b>Enviar</b>.</p>
+
+    <table>
+        <tr>
+            <td><label for="SSID">SSID: </label></td>
+            <td><input id="ssid" name="SSID" type="text"></td>
+        </tr>
+        <tr>
+            <td><label for="Password">Password: </label></td>
+            <td><input id="password" name="Password" type="password"></td>
+        </tr>
+    </table>
+    
+    
+    <br>
+    
+    
+    <button onclick="setCredentials()">Enviar</button>
+
+
+    <script>
+
+        function setCredentials(){
+
+            var ssid = document.getElementById("ssid").value
+            var password = document.getElementById("password").value
+
+            if(ssid && password){
+
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.open("POST", location.href);
+                xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xmlhttp.send(JSON.stringify({ "ssid": ssid, "password": password }));
+
+                alert("Informações enviadas com sucesso!")
+
+            } else {
+                alert("Verifique os dados inseridos e tente novamente.");
+            }
+
+
+        }
+
+    </script>
+    
+</body>
+</html>

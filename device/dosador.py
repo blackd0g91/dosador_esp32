@@ -16,7 +16,7 @@ class Dosador:
     SERVER_BASE             = const("https://monitor-pet-dosador.azurewebsites.net/api/")   # URL base da API
     SERVER_APIKEY           = const('e5dd09c6-a4bf-46bf-af56-4c533f5c60aa')                 # Chave da API
     MAX_WEIGHT              = const(200)                                                    # Peso máximo suportado pelo recipiente
-    WEIGHT_LIST_SIZE        = const(4)                                                     # Lista de últimos pesos registrados
+    WEIGHT_LIST_SIZE        = const(6)                                                     # Lista de últimos pesos registrados
     SCALE_CALIBRATOR        = const(1120)                                                   # Valor para calibração da balança (8960/8)
     MAX_RELEASENOW_MINUTES  = const(5)
 
@@ -138,7 +138,7 @@ class Dosador:
             'weight'   : weight
         }
         request = await self.makeRequest("POST", endpoint, json=parameters)
-        if(request.status_code == 201):
+        if(request and request.status_code == 201):
             return True
         else:
             return False
@@ -270,6 +270,12 @@ class Dosador:
         else:
             print("Invalid quantity")
 
+    async def resetWlan(self):
+        utils.storeContent('wlan.json', '')
+        self.tareLed.on()
+        time.sleep(1)
+        machine.reset()
+
     #
     # BALANÇA
     #
@@ -284,7 +290,7 @@ class Dosador:
 
         if len(self.weightList) >= self.WEIGHT_LIST_SIZE:
             for weight in self.weightList:
-                if self.weightList.count(weight) > self.WEIGHT_LIST_SIZE / 2 and weight != self.lastWeight:
+                if self.weightList.count(weight) > self.WEIGHT_LIST_SIZE / 2 and weight != self.lastWeight and weight != (self.lastWeight -1) and weight != (self.lastWeight + 1):
                     sendWeight = await self.sendNewWeight(weight)
                     if sendWeight:
                         self.lastWeight = weight

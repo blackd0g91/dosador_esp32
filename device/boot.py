@@ -13,5 +13,9 @@ import utils
 import uasyncio
 import esp
 import micropython
+import socket
+import gc
+
+gc.collect()
 
 utils.startupDiag();
